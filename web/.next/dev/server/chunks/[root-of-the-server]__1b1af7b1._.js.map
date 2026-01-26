@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 34, "column": 0}, "map": {"version":3,"sources":["file:///Users/aunogarafat/Work/conversation/app/web/lib/auth-server.ts"],"sourcesContent":["import { convexBetterAuthNextJs } from \"@convex-dev/better-auth/nextjs\";\n\nexport const {\n  handler,\n  preloadAuthQuery,\n  isAuthenticated,\n  getToken,\n  fetchAuthQuery,\n  fetchAuthMutation,\n  fetchAuthAction,\n} = convexBetterAuthNextJs({\n  convexUrl: process.env.NEXT_PUBLIC_CONVEX_URL!,\n  convexSiteUrl: process.env.NEXT_PUBLIC_CONVEX_SITE_URL!,\n});\n"],"names":[],"mappings":";;;;;;;;;;;;;;;;AAAA;;AAEO,MAAM,EACX,OAAO,EACP,gBAAgB,EAChB,eAAe,EACf,QAAQ,EACR,cAAc,EACd,iBAAiB,EACjB,eAAe,EAChB,GAAG,IAAA,wZAAsB,EAAC;IACzB,SAAS;IACT,aAAa;AACf"}},
-    {"offset": {"line": 60, "column": 0}, "map": {"version":3,"sources":["file:///Users/aunogarafat/Work/conversation/app/web/app/api/auth/%5B...all%5D/route.ts"],"sourcesContent":["import { handler } from \"@/lib/auth-server\";\n\nexport const { GET, POST } = handler;\n"],"names":[],"mappings":";;;;;;AAAA;;AAEO,MAAM,EAAE,GAAG,EAAE,IAAI,EAAE,GAAG,kIAAO"}}]
-}
