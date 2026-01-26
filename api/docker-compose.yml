@@ -1,0 +1,20 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: mastra-pg-17
+    restart: always
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: mastra_user
+      POSTGRES_PASSWORD: mysecretpassword
+      POSTGRES_DB: mastra_local
+    volumes:
+      - mastra_pg17_data:/var/lib/postgresql/data
+      # This maps a local SQL file to run on startup (see Step 2)
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+volumes:
+  mastra_pg17_data:
