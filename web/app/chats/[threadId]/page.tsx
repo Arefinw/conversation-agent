@@ -53,11 +53,13 @@ export default function IndividualChatPage() {
       try {
         const { data } = await authClient.getSession();
         if (!data?.user) return router.push("/login");
-        setUserId(data.user.id);
+
+        const currentUserID = data.user.id;
+        setUserId(currentUserID);
 
         // Fetch all threads for the sidebar
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_MASTRA_BASE_URL}/threads?resourceId=${data.user.id}`,
+          `${process.env.NEXT_PUBLIC_MASTRA_BASE_URL}/threads?resourceId=${currentUserID}`,
         );
         if (res.ok) {
           const threadList = await res.json();
@@ -72,64 +74,137 @@ export default function IndividualChatPage() {
 
   // -- 2. AI SDK Hook --
   const { messages, setMessages, sendMessage, status, stop } = useChat({
-    id: threadId, // Associate chat state with the thread ID
+    id: threadId,
     transport: new DefaultChatTransport({
       api: process.env.NEXT_PUBLIC_MASTRA_BASE_URL + "/chat",
-      body: {
-        threadId: threadId,
-        resourceId: userId,
+      prepareSendMessagesRequest({ messages }) {
+        // FIX: Read userId (resource) from the last message's metadata
+        // This mirrors the working logic in your ChatsDashboardPage
+        const lastMessage = messages[messages.length - 1];
+        const metadata = lastMessage?.metadata as
+          | { resource?: string }
+          | undefined;
+
+        return {
+          body: {
+            messages,
+            memory: {
+              thread: threadId,
+              // Use the metadata value passed in sendMessage, fallback to "unknown"
+              resource: metadata?.resource || "unknown",
+            },
+          },
+        };
       },
     }),
     onFinish: () => {
-      // Optional: Refresh threads to update "Last Updated" times if needed
+      // Refresh threads to update "Last Updated" times
+      if (userId) {
+        const refreshThreads = async () => {
+          const res = await fetch(
+            `${process.env.NEXT_PUBLIC_MASTRA_BASE_URL}/threads?resourceId=${userId}`,
+          );
+          if (res.ok) {
+            const threadList = await res.json();
+            setThreads(threadList);
+          }
+        };
+        refreshThreads();
+      }
     },
   });
 
   // -- 3. Fetch History for the current thread --
   useEffect(() => {
-    if (!threadId || !userId) return; // Ensure userId is available for the fetch
+    if (!threadId || !userId) return;
 
     const fetchHistory = async () => {
       try {
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_MASTRA_BASE_URL}/threads/${threadId}/messages`,
+          `${process.env.NEXT_PUBLIC_MASTRA_BASE_URL}/threads/${threadId}`,
         );
         if (res.ok) {
-          const history = await res.json();
-          const transformedHistory = history.map((m: any) => ({
-            id: m.id,
-            role: m.role,
-            parts: [
-              {
-                type: "text",
-                text: m.content,
-              },
-            ],
-            // Assuming Mastra messages are compatible or can be transformed
-          }));
-          setMessages(transformedHistory);
-        } else if (messages.length === 0) {
-          // If fetching fails and we have no messages, maybe show a loading message
-          setMessages([
-            {
-              id: "initial-load",
-              role: "assistant",
+          const data = await res.json();
+          let messagesArray;
+
+          if (Array.isArray(data)) {
+            messagesArray = data;
+          } else if (
+            data &&
+            typeof data === "object" &&
+            Array.isArray(data.messages)
+          ) {
+            messagesArray = data.messages;
+          } else if (
+            data &&
+            typeof data === "object" &&
+            Array.isArray(data.data)
+          ) {
+            messagesArray = data.data;
+          } else {
+            console.warn("Unexpected API response format:", data);
+            messagesArray = [];
+          }
+
+          if (messagesArray.length > 0) {
+            const transformedHistory = messagesArray.map((m: any) => ({
+              id: m.id,
+              role: m.role || m.type || "assistant",
               parts: [
                 {
                   type: "text",
-                  text: "Loading analysis...",
+                  text: m.content || m.text || m.message || JSON.stringify(m),
                 },
               ],
+            }));
+            setMessages(transformedHistory);
+          } else {
+            // Welcome message if new
+            if (messages.length === 0) {
+              setMessages([
+                {
+                  id: "welcome-message",
+                  role: "assistant",
+                  parts: [
+                    {
+                      type: "text",
+                      text: "This is a new conversation. Ask me anything about the conversation analysis!",
+                    },
+                  ],
+                },
+              ]);
+            }
+          }
+        } else if (messages.length === 0) {
+          setMessages([
+            {
+              id: "fetch-error",
+              role: "assistant",
+              parts: [{ type: "text", text: "Failed to load chat history." }],
             },
           ]);
         }
       } catch (e) {
         console.error("Failed to load history", e);
+        if (messages.length === 0) {
+          setMessages([
+            {
+              id: "exception-error",
+              role: "assistant",
+              parts: [
+                {
+                  type: "text",
+                  text: "An error occurred while loading history.",
+                },
+              ],
+            },
+          ]);
+        }
       }
     };
 
     fetchHistory();
-  }, [threadId, userId, setMessages]); // Add userId to dependencies
+  }, [threadId, userId, setMessages]);
 
   // -- 4. Handlers --
   const handleNewChat = () => {
@@ -141,8 +216,15 @@ export default function IndividualChatPage() {
   };
 
   const handleSubmit = async () => {
-    if (!input.trim() || !threadId) return;
-    sendMessage({ parts: [{ type: "text", text: input }] });
+    // FIX: Ensure userId exists before sending
+    if (!input.trim() || !threadId || !userId) return;
+
+    // FIX: Pass userId in metadata so transport can read it dynamically
+    sendMessage({
+      text: input,
+      metadata: { resource: userId },
+    });
+
     setInput("");
   };
 

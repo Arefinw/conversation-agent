@@ -61,7 +61,7 @@ export const mastra = new Mastra({
       }),
 
       // GET: Get messages for a thread
-      registerApiRoute("/threads/:threadId/messages", {
+      registerApiRoute("/threads/:threadId", {
         method: "GET",
         handler: async (c) => {
           const mastra = c.get("mastra");
