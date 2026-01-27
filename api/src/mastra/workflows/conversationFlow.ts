@@ -28,6 +28,7 @@ export const conversationWorkflow = createWorkflow({
     const init = await getInitData();
 
     return {
+      fileUrl: init.fileUrl,
       conversationText: transcriptionResult.conversationText,
       analysis: axiomResult.analysis,
       reasoning: logicResult.reasoning,

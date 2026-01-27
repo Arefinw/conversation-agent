@@ -27,6 +27,9 @@ export const RAGStep = createStep({
 
     const chatAgent = mastra.getAgent("chatAgent");
     const memory = await chatAgent.getMemory();
+    if (!memory) {
+      throw new Error("chatAgent has no memory configured");
+    }
     const thread = await memory?.createThread({ resourceId });
     const threadId = thread!.id!;
 
@@ -63,6 +66,7 @@ ${reasoning}
         },
       ],
     });
+
     await memory?.saveMessages({
       messages: [
         {

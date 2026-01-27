@@ -17,6 +17,8 @@ export const transcriptionStep = createStep({
   }),
   execute: async ({ inputData, runtimeContext }) => {
     const { fileUrl, resourceId } = inputData;
+    console.log("fileUrl", fileUrl);
+    console.log("resourceId", resourceId);
 
     const result = await geminiTranscribeTool.execute({
       context: { fileUrl },

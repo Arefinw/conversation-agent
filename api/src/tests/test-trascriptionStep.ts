@@ -1,8 +1,8 @@
 // src/mastra/test-transcription-step.ts
 import { z } from "zod";
 import { createWorkflow } from "@mastra/core/workflows";
-import { transcriptionStep } from "../steps/transcriptionStep";
-import { transcriptionSchema } from "../agents/audio";
+import { transcriptionStep } from "../mastra/steps/transcriptionStep";
+import { transcriptionSchema } from "../mastra/agents/audio";
 
 // Wrap your step in a simple workflow
 const transcriptionWorkflow = createWorkflow({

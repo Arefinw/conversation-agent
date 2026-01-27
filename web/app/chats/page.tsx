@@ -55,51 +55,48 @@ export default function ChatsDashboardPage() {
     router.push(`/chats/${threadId}`);
   };
 
-  const handleUploadComplete = async (audioUrl: string, fileName: string) => {
+  // State to hold the current audio data
+  const [currentAudioData, setCurrentAudioData] = useState("");
+
+  const { error, status, sendMessage, messages, regenerate, stop } = useChat({
+    transport: new DefaultChatTransport({
+      api: process.env.NEXT_PUBLIC_MASTRA_BASE_URL + "/conversation",
+      prepareSendMessagesRequest({ messages }) {
+        const metadata = messages[messages.length - 1].metadata as {
+          audioUrl?: string;
+          userId?: string;
+        };
+        return {
+          body: {
+            inputData: {
+              fileUrl: metadata.audioUrl,
+              resourceId: metadata.userId,
+            },
+          },
+        };
+      },
+    }),
+  });
+
+  const handleUploadComplete = async (audioUrl: string) => {
     if (!userId) return;
     setIsProcessing(true);
 
     try {
-      // A. Run Workflow (and don't wait for it)
-      // This runs Transcription -> RAG -> Logic in the background
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_MASTRA_BASE_URL}/conversation`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            filePath: audioUrl,
-            resourceId: userId,
-          }),
-        },
-      );
-      const { error, status, sendMessage, messages, regenerate, stop } =
-        useChat({
-          transport: new DefaultChatTransport({
-            api: process.env.NEXT_PUBLIC_MASTRA_BASE_URL + "/conversation",
-            prepareSendMessagesRequest({ messages }) {
-              return {
-                body: {
-                  inputData: {
-                    city: messages[messages.length - 1].parts[0].text,
-                  },
-                  //Or resumeData for resuming a suspended workflow
-                  resumeData: {
-                    confirmation: messages[messages.length - 1].parts[0].text,
-                  },
-                },
-              };
-            },
-          }),
-        });
+      console.log("audio url", audioUrl);
+      console.log("user ID", userId);
 
-      const ids = (await res.json()) as {
-        threadId: string;
-        resourceId: string;
-      };
+      // Set the current audio data to be used by the transport
+      setCurrentAudioData(audioUrl);
 
-      // C. Redirect to the new chat page
-      router.push(`/chats/${ids.threadId}`);
+      // Send a simple message to trigger the conversation
+      await sendMessage({
+        text: `Process audio file: ${audioUrl}`,
+        metadata: { audioUrl, userId },
+      });
+
+      // C. Redirect to the chat list page since the thread will be created by the backend
+      router.push("/chats");
     } catch (error) {
       console.error(error);
       alert("Failed to process audio.");

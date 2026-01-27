@@ -44,6 +44,9 @@ importers:
       drizzle-orm:
         specifier: ^0.45.1
         version: 0.45.1(@libsql/client@0.15.15)(@opentelemetry/api@1.9.0)(@types/pg@8.16.0)(@upstash/redis@1.36.1)(pg@8.17.2)(postgres@3.4.8)
+      node-fetch:
+        specifier: ^3.3.2
+        version: 3.3.2
       pg:
         specifier: ^8.17.2
         version: 8.17.2
@@ -4461,7 +4464,7 @@ snapshots:
 
   '@openrouter/sdk@0.1.27':
     dependencies:
-      zod: 4.3.5
+      zod: 3.25.76
 
   '@opentelemetry/api-logs@0.203.0':
     dependencies:
