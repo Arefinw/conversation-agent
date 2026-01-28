@@ -11,6 +11,27 @@ import { UploadUI } from "@/components/upload-ui";
 import { Loader2 } from "lucide-react";
 import "dotenv/config";
 
+// 1. Define the specific structure of your workflow data
+// This matches how Mastra structures the 'data' object inside the part
+type WorkflowStepResult = {
+  steps: Record<
+    string,
+    {
+      status: "success" | "failed" | "running";
+      output: {
+        threadId: string;
+        resourceId: string;
+      };
+    }
+  >;
+};
+
+// 2. Define a custom interface for the Mastra part to fix the TS error
+interface MastraDataPart {
+  type: "data-workflow";
+  data: WorkflowStepResult;
+}
+
 export default function ChatsDashboardPage() {
   const router = useRouter();
 
@@ -76,6 +97,35 @@ export default function ChatsDashboardPage() {
         };
       },
     }),
+    onFinish: (message) => {
+      // A. Find the part with type 'data-workflow'
+      const rawPart = message.message.parts.find(
+        (part) => part.type === "data-workflow",
+      );
+
+      if (rawPart) {
+        // B. Cast the generic part to our Mastra interface
+        // This fixes "Property 'data' does not exist on type..."
+        const workflowPart = rawPart as unknown as MastraDataPart;
+
+        // C. Access the data exactly like the demo snippet
+        const stepResult = workflowPart.data;
+        const steps = Object.values(stepResult.steps);
+
+        // D. Get the last step (which contains your final outputSchema)
+        const lastStep = steps[steps.length - 1];
+
+        // E. Validate and Redirect
+        if (lastStep && lastStep.status === "success") {
+          const { threadId, resourceId } = lastStep.output;
+
+          if (threadId && resourceId) {
+            console.log("✅ Workflow Output Received:", lastStep.output);
+            router.push(`/chats/${threadId}`);
+          }
+        }
+      }
+    },
   });
 
   const handleUploadComplete = async (audioUrl: string) => {
@@ -94,9 +144,6 @@ export default function ChatsDashboardPage() {
         text: `Process audio file: ${audioUrl}`,
         metadata: { audioUrl, userId },
       });
-
-      // C. Redirect to the chat list page since the thread will be created by the backend
-      router.push("/chats");
     } catch (error) {
       console.error(error);
       alert("Failed to process audio.");
