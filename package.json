@@ -1,0 +1,24 @@
+{
+  "name": "conversation-agent",
+  "version": "1.0.0",
+  "description": "A conversational AI agent for analyzing audio files.",
+  "main": "index.js",
+  "scripts": {
+    "docker:up": "docker compose -f api/docker-compose.yml up",
+    "docker:down": "docker compose -f api/docker-compose.yml down",
+    "convex:dev": "cd web && pnpm dlx convex dev",
+    "dev": "concurrently -n \"API,WEB\" -c \"blue,green\" \"pnpm --filter api run dev\" \"pnpm --filter web run dev\"",
+    "build": "pnpm -r build",
+    "start": "concurrently \"pnpm --filter api start\" \"pnpm --filter web start\""
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "conversation"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
