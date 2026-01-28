@@ -44,6 +44,7 @@ export default function IndividualChatPage() {
 
   // -- State --
   const [userId, setUserId] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
   const [threads, setThreads] = useState<any[]>([]);
   const [input, setInput] = useState("");
 
@@ -56,6 +57,7 @@ export default function IndividualChatPage() {
 
         const currentUserID = data.user.id;
         setUserId(currentUserID);
+        setUserName(data.user.name || data.user.email);
 
         // Fetch all threads for the sidebar
         const res = await fetch(
@@ -170,6 +172,11 @@ export default function IndividualChatPage() {
     router.push("/chats");
   };
 
+  const handleLogout = async () => {
+    await authClient.logout();
+    router.push("/login");
+  };
+
   const handleSelectThread = (selectedThreadId: string) => {
     router.push(`/chats/${selectedThreadId}`);
   };
@@ -209,6 +216,8 @@ export default function IndividualChatPage() {
           activeThreadId={threadId}
           onSelectThread={handleSelectThread}
           onNewChat={handleNewChat}
+          onLogout={handleLogout}
+          userName={userName}
           className="h-full w-[260px]"
         />
       </div>

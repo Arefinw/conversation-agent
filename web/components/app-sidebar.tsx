@@ -1,5 +1,14 @@
-import { Plus, MessageSquare, AudioWaveform } from "lucide-react";
+import { Plus, AudioWaveform, LogOut, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 
 interface Thread {
   id: string;
@@ -12,7 +21,9 @@ interface AppSidebarProps {
   activeThreadId: string | null;
   onSelectThread: (id: string) => void;
   onNewChat: () => void;
-  className?: string; // Added className prop
+  onLogout: () => void;
+  userName: string | null;
+  className?: string;
 }
 
 export function AppSidebar({
@@ -20,14 +31,17 @@ export function AppSidebar({
   activeThreadId,
   onSelectThread,
   onNewChat,
-  className, // Destructure className
+  onLogout,
+  userName,
+  className,
 }: AppSidebarProps) {
   return (
     <aside
-      className={cn( // Apply className here
+      className={cn(
         "w-[260px] h-screen bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col shrink-0 transition-all duration-300",
         className,
-      )}>
+      )}
+    >
       {/* Header / New Chat */}
       <div className="p-4">
         <button
@@ -70,12 +84,33 @@ export function AppSidebar({
         ))}
       </div>
 
-      {/* User Footer (Optional) */}
-      <div className="p-4 border-t border-sidebar-border bg-sidebar/50">
-        <div className="flex items-center gap-3 text-sm font-medium text-sidebar-foreground/80">
-          <div className="size-8 rounded-full bg-gradient-to-tr from-sidebar-primary to-purple-400"></div>
-          <div>User Account</div>
-        </div>
+      {/* User Footer */}
+      <div className="p-2 border-t border-sidebar-border">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              className="w-full justify-start items-center text-left"
+            >
+              <div className="flex items-center gap-3 text-sm font-medium text-sidebar-foreground/80 w-full">
+                <div className="size-8 rounded-full flex items-center justify-center bg-gradient-to-tr from-sidebar-primary to-purple-400">
+                  <User size={16} className="text-white" />
+                </div>
+                <div className="truncate flex-1">
+                  {userName || "User Account"}
+                </div>
+              </div>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56 mb-2" side="top" align="start">
+            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onLogout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Log out</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </aside>
   );

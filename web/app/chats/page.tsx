@@ -36,6 +36,7 @@ export default function ChatsDashboardPage() {
 
   // -- State --
   const [userId, setUserId] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
   const [threads, setThreads] = useState<any[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -47,6 +48,7 @@ export default function ChatsDashboardPage() {
         if (!data?.user) return router.push("/login");
 
         setUserId(data.user.id);
+        setUserName(data.user.name || data.user.email);
 
         // Fetch Threads for the sidebar
         const res = await fetch(
@@ -71,6 +73,11 @@ export default function ChatsDashboardPage() {
 
   const handleSelectThread = (threadId: string) => {
     router.push(`/chats/${threadId}`);
+  };
+
+  const handleLogout = async () => {
+    await authClient.logout();
+    router.push("/login");
   };
 
   // State to hold the current audio data
@@ -166,6 +173,8 @@ export default function ChatsDashboardPage() {
           activeThreadId={null}
           onSelectThread={handleSelectThread}
           onNewChat={handleNewChat}
+          onLogout={handleLogout}
+          userName={userName}
           className="h-full w-[260px]" // Standard sidebar width
         />
       </div>
