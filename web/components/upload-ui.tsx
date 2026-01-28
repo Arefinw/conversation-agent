@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { UploadCloud, Loader2 } from "lucide-react";
+import { UploadCloud, Loader2, FileAudio, ArrowUp } from "lucide-react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { cn } from "@/lib/utils";
@@ -73,86 +73,98 @@ export function UploadUI({ onUploadComplete, isProcessing }: UploadUIProps) {
       setIsUploading(false);
     }
   };
-  
+
   const isBusy = isUploading || isProcessing;
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center h-full p-8 animate-in fade-in zoom-in duration-500">
-      <div className="max-w-md w-full text-center space-y-8">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-serif font-bold text-primary tracking-tight">
-            Audio Analysis AI
-          </h1>
-          <p className="text-muted-foreground">
-            Upload a recording to generate transcriptions, axioms, and logical
-            determinations.
-          </p>
-        </div>
+    <div className="w-full max-w-2xl mx-auto px-4">
+      <div
+        className={cn(
+          "relative group flex flex-col items-center justify-center w-full rounded-2xl border transition-all duration-300 overflow-hidden",
+          // Height and spacing
+          "min-h-[160px] p-8",
+          // Colors & Borders
+          dragActive
+            ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+            : "border-border bg-card hover:bg-muted/30 hover:border-primary/50",
+          // Cursor
+          isBusy ? "cursor-not-allowed opacity-80" : "cursor-pointer",
+        )}
+        onDragEnter={isBusy ? undefined : handleDrag}
+        onDragLeave={isBusy ? undefined : handleDrag}
+        onDragOver={isBusy ? undefined : handleDrag}
+        onDrop={isBusy ? undefined : handleDrop}
+      >
+        <input
+          type="file"
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 disabled:cursor-not-allowed"
+          onChange={handleChange}
+          accept="audio/*"
+          disabled={isBusy}
+        />
 
-        <div
-          className={cn(
-            "relative group flex flex-col items-center justify-center w-full h-64 rounded-3xl border-2 border-dashed transition-all duration-300 bg-card/50",
-            {
-              "cursor-pointer": !isBusy,
-              "cursor-not-allowed opacity-60": isBusy,
-            },
-            dragActive && !isBusy
-              ? "border-primary bg-primary/5 scale-[1.02] shadow-lg"
-              : "border-border hover:border-primary/50 hover:bg-card",
-          )}
-          onDragEnter={isBusy ? undefined : handleDrag}
-          onDragLeave={isBusy ? undefined : handleDrag}
-          onDragOver={isBusy ? undefined : handleDrag}
-          onDrop={isBusy ? undefined : handleDrop}
-        >
-          <input
-            type="file"
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-            onChange={handleChange}
-            accept="audio/*"
-            disabled={isBusy}
-          />
+        <div className="flex flex-col items-center gap-4 text-center relative z-0">
+          {/* Icon Circle */}
+          <div
+            className={cn(
+              "flex items-center justify-center w-12 h-12 rounded-full transition-all duration-300",
+              isBusy
+                ? "bg-primary/10 text-primary"
+                : "bg-muted text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground group-hover:scale-110",
+            )}
+          >
+            {isBusy ? (
+              <Loader2 className="w-6 h-6 animate-spin" />
+            ) : dragActive ? (
+              <ArrowUp className="w-6 h-6 animate-bounce" />
+            ) : (
+              <FileAudio className="w-6 h-6" />
+            )}
+          </div>
 
-          <div className="flex flex-col items-center gap-4 text-center p-6 transition-all">
-            <div
-              className={cn(
-                "p-4 rounded-full bg-background shadow-sm ring-1 ring-border transition-transform duration-300",
-                isBusy ? "animate-pulse" : "group-hover:-translate-y-1",
-              )}
-            >
-              <Loader2
-                className={cn("size-8 text-primary", {
-                  "animate-spin": isBusy,
-                  hidden: !isBusy,
-                })}
-              />
-              <UploadCloud
-                className={cn("size-8 text-primary", { hidden: isBusy })}
-              />
-            </div>
+          {/* Text Content */}
+          <div className="space-y-1">
+            <p className="text-base font-medium text-foreground">
+              {isUploading
+                ? "Uploading audio..."
+                : isProcessing
+                  ? "Analyzing conversation..."
+                  : "Upload Audio File"}
+            </p>
 
-            <div className="space-y-1">
-              <p className="text-lg font-medium text-foreground">
-                {isUploading
-                  ? "Uploading..."
-                  : isProcessing
-                  ? "Analyzing Audio..."
-                  : "Click to upload or drag and drop"}
-              </p>
+            {!isBusy && (
               <p className="text-sm text-muted-foreground">
-                MP3, WAV, or M4A (Max 50MB)
+                <span className="hidden sm:inline">Drag and drop or </span>
+                <span className="underline decoration-primary/50 underline-offset-2">
+                  browse
+                </span>
               </p>
-            </div>
+            )}
+
+            {/* Minimal file specs */}
+            {!isBusy && (
+              <p className="text-xs text-muted-foreground/60 mt-2">
+                MP3, WAV, M4A up to 50MB
+              </p>
+            )}
           </div>
         </div>
 
-        {isProcessing && (
-          <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200 text-sm rounded-lg border border-yellow-200 dark:border-yellow-800/50">
-            Running conversation workflow... This includes transcription, vector
-            embedding, and logical analysis.
+        {/* Status Bar / Progress Indicator */}
+        {isBusy && (
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-muted overflow-hidden">
+            <div className="h-full bg-primary animate-progress-indeterminate origin-left" />
           </div>
         )}
       </div>
+
+      {/* Contextual Info (Replaces the yellow box) */}
+      {isProcessing && (
+        <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground animate-pulse">
+          <UploadCloud className="w-4 h-4" />
+          <span>Generating transcriptions and analyzing logic...</span>
+        </div>
+      )}
     </div>
   );
 }

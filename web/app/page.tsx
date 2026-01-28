@@ -27,8 +27,8 @@ export default function HomePage() {
   }, [router]);
 
   return (
-    <div className="flex h-screen items-center justify-center bg-background">
-      <Loader2 className="animate-spin h-8 w-8 text-primary" />
+    <div className="flex h-screen w-full items-center justify-center bg-background">
+      <Loader2 className="animate-spin h-10 w-10 text-primary" />
     </div>
   );
 }

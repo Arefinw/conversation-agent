@@ -8,11 +8,10 @@ import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { AppSidebar } from "@/components/app-sidebar";
 import { UploadUI } from "@/components/upload-ui";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 import "dotenv/config";
 
 // 1. Define the specific structure of your workflow data
-// This matches how Mastra structures the 'data' object inside the part
 type WorkflowStepResult = {
   steps: Record<
     string,
@@ -68,11 +67,9 @@ export default function ChatsDashboardPage() {
 
   const handleNewChat = () => {
     // On this page, "New Chat" just ensures the upload UI is visible and ready.
-    // Since it's always visible, this could be a no-op or reset any upload-specific state.
   };
 
   const handleSelectThread = (threadId: string) => {
-    // When a thread is selected from the sidebar, navigate to its dedicated chat page.
     router.push(`/chats/${threadId}`);
   };
 
@@ -105,7 +102,6 @@ export default function ChatsDashboardPage() {
 
       if (rawPart) {
         // B. Cast the generic part to our Mastra interface
-        // This fixes "Property 'data' does not exist on type..."
         const workflowPart = rawPart as unknown as MastraDataPart;
 
         // C. Access the data exactly like the demo snippet
@@ -149,36 +145,59 @@ export default function ChatsDashboardPage() {
       alert("Failed to process audio.");
       setIsProcessing(false);
     }
-    // No need to set isProcessing to false if we are navigating away
   };
 
   // -- Render --
 
   if (!userId) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <Loader2 className="animate-spin" />
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen w-full bg-background overflow-hidden">
-      {/* Sidebar */}
-      <AppSidebar
-        threads={threads}
-        activeThreadId={null}
-        onSelectThread={handleSelectThread}
-        onNewChat={handleNewChat}
-        className="h-full"
-      />
-
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col h-full relative min-w-0">
-        <UploadUI
-          onUploadComplete={handleUploadComplete}
-          isProcessing={isProcessing}
+    <div className="flex h-screen w-full overflow-hidden bg-background text-foreground font-sans">
+      {/* Sidebar - Wrapper to ensure strict sizing if AppSidebar relies on flex */}
+      <div className="hidden md:block flex-shrink-0 h-full border-r border-sidebar-border bg-sidebar">
+        <AppSidebar
+          threads={threads}
+          activeThreadId={null}
+          onSelectThread={handleSelectThread}
+          onNewChat={handleNewChat}
+          className="h-full w-[260px]" // Standard sidebar width
         />
+      </div>
+
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col h-full relative min-w-0 bg-background">
+        <div className="flex-1 flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl flex flex-col items-center space-y-8 animate-in fade-in duration-500 slide-in-from-bottom-4">
+            {/* Greeting / Brand Header (Only show when not processing) */}
+            {!isProcessing && (
+              <div className="text-center space-y-3">
+                <div className="rounded-full bg-primary/10 p-4 w-fit mx-auto mb-4">
+                  <Sparkles className="h-8 w-8 text-primary" />
+                </div>
+                <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+                  What can I help you with?
+                </h2>
+                <p className="text-muted-foreground">
+                  Upload an audio file to start a new conversation.
+                </p>
+              </div>
+            )}
+
+            {/* Upload Component */}
+            <div className="w-full">
+              <UploadUI
+                onUploadComplete={handleUploadComplete}
+                isProcessing={isProcessing}
+              />
+            </div>
+          </div>
+        </div>
       </main>
     </div>
   );
