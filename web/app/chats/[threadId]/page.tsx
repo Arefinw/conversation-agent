@@ -7,7 +7,7 @@ import { useChat } from "@ai-sdk/react";
 import { useRouter, useParams } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { AppSidebar } from "@/components/app-sidebar";
-import { Loader2 } from "lucide-react";
+import { Loader2, User, Bot, ArrowUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // AI Elements Imports
@@ -78,8 +78,6 @@ export default function IndividualChatPage() {
     transport: new DefaultChatTransport({
       api: process.env.NEXT_PUBLIC_MASTRA_BASE_URL + "/chat",
       prepareSendMessagesRequest({ messages }) {
-        // FIX: Read userId (resource) from the last message's metadata
-        // This mirrors the working logic in your ChatsDashboardPage
         const lastMessage = messages[messages.length - 1];
         const metadata = lastMessage?.metadata as
           | { resource?: string }
@@ -87,10 +85,11 @@ export default function IndividualChatPage() {
 
         return {
           body: {
-            messages,
+            // FIX: Only send the latest user message.
+            // The backend uses 'threadId' (in memory) to recall the rest.
+            messages: [lastMessage],
             memory: {
               thread: threadId,
-              // Use the metadata value passed in sendMessage, fallback to "unknown"
               resource: metadata?.resource || "unknown",
             },
           },
@@ -98,15 +97,18 @@ export default function IndividualChatPage() {
       },
     }),
     onFinish: () => {
-      // Refresh threads to update "Last Updated" times
       if (userId) {
         const refreshThreads = async () => {
-          const res = await fetch(
-            `${process.env.NEXT_PUBLIC_MASTRA_BASE_URL}/threads?resourceId=${userId}`,
-          );
-          if (res.ok) {
-            const threadList = await res.json();
-            setThreads(threadList);
+          try {
+            const res = await fetch(
+              `${process.env.NEXT_PUBLIC_MASTRA_BASE_URL}/threads?resourceId=${userId}`,
+            );
+            if (res.ok) {
+              const threadList = await res.json();
+              setThreads(threadList);
+            }
+          } catch (error) {
+            console.error("Failed to refresh threads:", error);
           }
         };
         refreshThreads();
@@ -114,7 +116,7 @@ export default function IndividualChatPage() {
     },
   });
 
-  // -- 3. Fetch History for the current thread --
+  // -- 3. Fetch History --
   useEffect(() => {
     if (!threadId || !userId) return;
 
@@ -125,41 +127,12 @@ export default function IndividualChatPage() {
         );
         if (res.ok) {
           const data = await res.json();
-          let messagesArray;
-
-          if (Array.isArray(data)) {
-            messagesArray = data;
-          } else if (
-            data &&
-            typeof data === "object" &&
-            Array.isArray(data.messages)
-          ) {
-            messagesArray = data.messages;
-          } else if (
-            data &&
-            typeof data === "object" &&
-            Array.isArray(data.data)
-          ) {
-            messagesArray = data.data;
-          } else {
-            console.warn("Unexpected API response format:", data);
-            messagesArray = [];
-          }
+          console.log("Body JSON", data);
+          let messagesArray = data.uiMessages || [];
 
           if (messagesArray.length > 0) {
-            const transformedHistory = messagesArray.map((m: any) => ({
-              id: m.id,
-              role: m.role || m.type || "assistant",
-              parts: [
-                {
-                  type: "text",
-                  text: m.content || m.text || m.message || JSON.stringify(m),
-                },
-              ],
-            }));
-            setMessages(transformedHistory);
+            setMessages(messagesArray);
           } else {
-            // Welcome message if new
             if (messages.length === 0) {
               setMessages([
                 {
@@ -186,20 +159,6 @@ export default function IndividualChatPage() {
         }
       } catch (e) {
         console.error("Failed to load history", e);
-        if (messages.length === 0) {
-          setMessages([
-            {
-              id: "exception-error",
-              role: "assistant",
-              parts: [
-                {
-                  type: "text",
-                  text: "An error occurred while loading history.",
-                },
-              ],
-            },
-          ]);
-        }
       }
     };
 
@@ -216,16 +175,19 @@ export default function IndividualChatPage() {
   };
 
   const handleSubmit = async () => {
-    // FIX: Ensure userId exists before sending
     if (!input.trim() || !threadId || !userId) return;
-
-    // FIX: Pass userId in metadata so transport can read it dynamically
     sendMessage({
       text: input,
       metadata: { resource: userId },
     });
-
     setInput("");
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
   };
 
   // -- Render --
@@ -233,96 +195,153 @@ export default function IndividualChatPage() {
   if (!userId) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
-        <Loader2 className="animate-spin" />
+        <Loader2 className="animate-spin h-10 w-10 text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen w-full bg-background overflow-hidden">
+    <div className="flex h-screen w-full bg-background overflow-hidden font-sans">
       {/* Sidebar */}
-      <AppSidebar
-        threads={threads}
-        activeThreadId={threadId}
-        onSelectThread={handleSelectThread}
-        onNewChat={handleNewChat}
-        className="h-full"
-      />
+      <div className="hidden md:block flex-shrink-0 h-full border-r border-sidebar-border bg-sidebar">
+        <AppSidebar
+          threads={threads}
+          activeThreadId={threadId}
+          onSelectThread={handleSelectThread}
+          onNewChat={handleNewChat}
+          className="h-full w-[260px]"
+        />
+      </div>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col h-full relative min-w-0">
-        <Conversation className="flex-1 pb-32">
-          <ConversationContent className="max-w-3xl mx-auto pt-8">
-            {messages.map((message: any, index: number) => (
-              <div key={message.id || index} className="mb-6">
-                {/* Render Tools if any */}
-                {message.parts?.map((part: any, i: number) => {
-                  if (part.type?.startsWith("tool-")) {
-                    return (
-                      <Tool key={`${message.id}-${i}`}>
-                        <ToolHeader
-                          type={part.type}
-                          state={part.state || "output-available"}
-                        />
-                        <ToolContent>
-                          <ToolInput input={part.input || part.args || {}} />
-                          <ToolOutput
-                            output={part.output || part.result}
-                            errorText={part.error}
-                          />
-                        </ToolContent>
-                      </Tool>
-                    );
-                  }
-                  return null;
-                })}
+      <main className="flex-1 flex flex-col h-full relative min-w-0 bg-background">
+        {/* Scrollable Conversation Area */}
+        <Conversation className="flex-1 overflow-y-auto">
+          <ConversationContent className="max-w-3xl mx-auto px-4 pt-4 pb-40 space-y-8">
+            {messages.map((message: any, index: number) => {
+              const isUser = message.role === "user";
+              return (
+                <div key={message.id || index} className="group relative">
+                  {/* Render Tools if any */}
+                  {message.parts?.map((part: any, i: number) => {
+                    if (part.type?.startsWith("tool-")) {
+                      return (
+                        <div
+                          key={`${message.id}-${i}`}
+                          className="mb-4 pl-0 md:pl-12"
+                        >
+                          <Tool>
+                            <ToolHeader
+                              type={part.type}
+                              state={part.state || "output-available"}
+                            />
+                            <ToolContent>
+                              <ToolInput
+                                input={part.input || part.args || {}}
+                              />
+                              <ToolOutput
+                                output={part.output || part.result}
+                                errorText={part.error}
+                              />
+                            </ToolContent>
+                          </Tool>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })}
 
-                {/* Render Text */}
-                {message.parts?.some((p: any) => p.type === "text") && (
-                  <Message from={message.role}>
-                    <MessageContent
+                  {/* Render Text Message */}
+                  {message.parts?.some((p: any) => p.type === "text") && (
+                    <div
                       className={cn(
-                        "shadow-sm",
-                        message.role === "user"
-                          ? "bg-secondary text-secondary-foreground"
-                          : "bg-card",
+                        "flex gap-4 w-full",
+                        isUser ? "flex-row-reverse" : "flex-row",
                       )}
                     >
-                      <MessageResponse>
-                        {
-                          message.parts?.find((p: any) => p.type === "text")
-                            ?.text
-                        }
-                      </MessageResponse>
-                    </MessageContent>
-                  </Message>
-                )}
-              </div>
-            ))}
-            <ConversationScrollButton className="bg-primary text-primary-foreground hover:bg-primary/90" />
+                      {/* Avatar */}
+                      <div
+                        className={cn(
+                          "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center border",
+                          isUser
+                            ? "bg-muted text-muted-foreground border-transparent"
+                            : "bg-primary text-primary-foreground border-primary",
+                        )}
+                      >
+                        {isUser ? (
+                          <User className="w-5 h-5" />
+                        ) : (
+                          <Bot className="w-5 h-5" />
+                        )}
+                      </div>
+
+                      {/* Message Bubble */}
+                      <Message
+                        from={message.role}
+                        className="flex-1 max-w-[85%]"
+                      >
+                        <MessageContent
+                          className={cn(
+                            "px-5 py-3.5 rounded-2xl shadow-sm text-base leading-relaxed",
+                            isUser
+                              ? "bg-secondary text-secondary-foreground rounded-tr-sm"
+                              : "bg-card text-card-foreground border border-border rounded-tl-sm",
+                          )}
+                        >
+                          <MessageResponse>
+                            {
+                              message.parts?.find((p: any) => p.type === "text")
+                                ?.text
+                            }
+                          </MessageResponse>
+                        </MessageContent>
+                      </Message>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </ConversationContent>
+          <ConversationScrollButton className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md bottom-32" />
         </Conversation>
 
         {/* Input Area */}
-        <div className="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-background via-background to-transparent">
-          <div className="max-w-3xl mx-auto">
+        <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-background via-background to-transparent pt-10 pb-6 px-4 z-20">
+          <div className="max-w-3xl mx-auto space-y-3">
             <PromptInput
+              className="relative w-full rounded-3xl border border-input bg-card shadow-lg ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 transition-all"
               onSubmit={handleSubmit}
-              className="bg-card border border-input shadow-lg rounded-xl overflow-hidden"
             >
-              <PromptInputBody>
+              <PromptInputBody className="relative flex w-full items-end p-3 pl-4">
                 <PromptInputTextarea
                   onChange={(e: any) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
                   value={input}
                   placeholder="Ask follow-up questions about the analysis..."
                   disabled={status !== "ready"}
-                  className="min-h-[50px] max-h-[200px] text-base"
+                  className="min-h-[24px] max-h-[200px] w-full resize-none bg-transparent py-3 text-base focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                  rows={1}
                 />
+                <div className="flex shrink-0 ml-3 pb-1">
+                  <button
+                    onClick={handleSubmit}
+                    disabled={!input.trim() || status !== "ready"}
+                    className={cn(
+                      "flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 ease-in-out",
+                      input.trim()
+                        ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
+                        : "bg-muted text-muted-foreground cursor-not-allowed",
+                    )}
+                  >
+                    <ArrowUp className="w-5 h-5" />
+                  </button>
+                </div>
               </PromptInputBody>
             </PromptInput>
-            <div className="text-center mt-2 text-xs text-muted-foreground">
+
+            <p className="text-center text-xs text-muted-foreground/60 font-medium">
               AI can make mistakes. Verify logical determinations.
-            </div>
+            </p>
           </div>
         </div>
       </main>
