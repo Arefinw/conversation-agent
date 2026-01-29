@@ -33,3 +33,8 @@ next-env.d.ts
 
 # mastra
 .mastra
+
+# cli settings
+.cursor/
+.gemini/
+.qwen
